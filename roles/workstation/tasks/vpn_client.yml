@@ -1,0 +1,47 @@
+- name: Load vpn credentials variables
+  tags: always
+  include_vars: vpn_credentials.yml
+
+# should probably verify that nm and needed ovpn packages are installed
+
+- name: vpn client | check if connection is already defined
+  stat:
+    path: /etc/NetworkManager/system-connections/Seattle.nmconnection
+  register: vpn_defined
+
+- name: vpn client | copy openvpn config to tmp
+  copy:
+    src: vpn_client/Seattle.ovpn
+    dest: /tmp/Seattle.ovpn
+  when: not vpn_defined.stat.exists
+
+- name: vpn client | import vpn configuration
+  become_user: jeffrey
+  command:
+    cmd: "nmcli connection import type openvpn file /tmp/Seattle.ovpn"
+    creates: /etc/NetworkManager/system-connections/Seattle.nmconnection
+  register: vpn_imported
+
+- name: vpn client | remove password-flags
+  command: nmcli connection modify Seattle -vpn.data password-flags
+  when:
+    - vpn_imported is defined
+    - vpn_imported.changed
+
+- name: vpn client | set password-flags
+  command: nmcli connection modify Seattle +vpn.data password-flags=0
+  when:
+    - vpn_imported is defined
+    - vpn_imported.changed
+
+- name: vpn client | set username
+  command: "nmcli connection modify Seattle +vpn.data username={{ vpn_client_username }}"
+  when:
+    - vpn_imported is defined
+    - vpn_imported.changed
+
+- name: vpn client | set password
+  command: "nmcli connection modify Seattle +vpn.secrets password={{ vpn_client_password }}"
+  when:
+    - vpn_imported is defined
+    - vpn_imported.changed

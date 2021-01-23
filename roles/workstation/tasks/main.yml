@@ -26,6 +26,9 @@
   - include_tasks: desktop_environments/gnome/peripherals.yml
     when: gnome
 
+  ## vpn client setup
+  - include_tasks: vpn_client.yml
+    when: vpn_client
 
   rescue:
   - name: Set fact if task failed
